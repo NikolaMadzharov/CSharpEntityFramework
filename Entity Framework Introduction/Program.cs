@@ -127,5 +127,103 @@ namespace SoftUni
 
             return output.ToString().TrimEnd();
         }
+            public static string GetEmployeesInPeriod(SoftUniContext context)
+        {
+            var employees = context.Employees
+                .Include(db => db.EmployeesProjects)
+                .ThenInclude(db => db.Project)
+                .Where(x => x.EmployeesProjects
+                    .Select(x => x.Project)
+                    .Any(x => x.StartDate.Year >= 2001 && x.StartDate.Year <= 2003))
+                .Take(10)
+                .Select(x => new
+                {
+                    x.FirstName,
+                    x.LastName,
+                    managerFirstName = x.Manager.FirstName,
+                    managerLastName = x.Manager.LastName,
+                    projects = x.EmployeesProjects.Select(x => x.Project)
+                })
+                .ToArray();
+
+            StringBuilder output = new StringBuilder();
+
+            foreach (var employee in employees)
+            {
+                output.AppendLine($"{employee.FirstName} {employee.LastName} - Manager: {employee.managerFirstName} {employee.managerLastName}");
+
+
+                       foreach (var project in employee.projects)
+                       {
+
+                           string endDate = null;
+                           if (project.EndDate==null)
+                           {
+                               endDate = "not finished";
+                           }
+                           else
+                           {
+                               endDate= $"{project.EndDate:M/d/yyyy h:mm:ss tt}";
+                           }
+
+                           output.AppendLine($"--{project.Name} - {project.StartDate:M/d/yyyy h:mm:ss tt} - {endDate}");
+
+                       }
+            }
+
+            return output.ToString().TrimEnd();
+        }
+
+        public static string GetAddressesByTown(SoftUniContext context)
+        {
+            var employeeAddressInformation = context.Addresses
+                .Include(db => db.Employees)
+                .Include(db => db.Town)
+                .Select(x => new
+                {
+                    x.AddressText,
+                    town = x.Town.Name,
+                    employeesCount = x.Employees.Count()
+                })
+                .OrderByDescending(x => x.employeesCount)
+                .ThenBy(x => x.town)
+                .ThenBy(x => x.AddressText)
+                .Take(10)
+                .ToArray();
+
+            StringBuilder output = new StringBuilder();
+
+            foreach (var employeeInformation in employeeAddressInformation)
+            {
+                output.AppendLine(
+                    $"{employeeInformation.AddressText},{employeeInformation.town} - {employeeInformation.employeesCount} employees");
+            }
+
+            return output.ToString().TrimEnd();
+
+        }
+
+        public static string GetEmployee147(SoftUniContext context)
+        {
+            var employee147 = context.Employees
+                .FirstOrDefault(x => x.EmployeeId == 147);
+
+
+            string[] projects = employee147.EmployeesProjects
+                .Select(x => x.Project.Name)
+                .OrderBy(name => name)
+                .ToArray();
+
+            StringBuilder output = new StringBuilder();
+
+            output.AppendLine($"{employee147.FirstName} {employee147.LastName} - {employee147.JobTitle}");
+
+            foreach (var employeeProjects in projects)
+            {
+                output.AppendLine(employeeProjects);
+            }
+
+            return output.ToString().Trim();
+        }
     }
 }
