@@ -25,7 +25,8 @@
         [Required]
         public string Name { get; set; }
 
-        public DateTime ReleaseDate { get; set; }
+        public Datetime? 
+ReleaseDate { get; set; }
 
         public decimal Price => this.Songs.Sum(x => x.Price);
 
