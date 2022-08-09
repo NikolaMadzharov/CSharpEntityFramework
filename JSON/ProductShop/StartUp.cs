@@ -1,226 +1,43 @@
-﻿namespace ProductShop
+
+
+namespace ProductShop
 {
+    using System;
     using System.Collections.Generic;
     using System.ComponentModel.DataAnnotations;
+    using System.Data;
     using System.IO;
-    using System.Linq;
-
-    using Data;
-    using DTOs.Category;
-    using DTOs.CategoryProduct;
-    using DTOs.Product;
-    using DTOs.User;
-    using Models;
+    using System.Text;
 
     using AutoMapper;
-    using AutoMapper.QueryableExtensions;
+
+    using Microsoft.EntityFrameworkCore;
+
     using Newtonsoft.Json;
+
+    using ProductShop.Data;
+    using ProductShop.Dtos.Import;
+    using ProductShop.Models;
 
     public class StartUp
     {
-        private static string filePath;
-
         public static void Main(string[] args)
         {
-            //Static because of Judge
-            Mapper.Initialize(cfg => cfg.AddProfile(typeof(ProductShopProfile)));
-            ProductShopContext dbContext = new ProductShopContext();
-            InitializeOutputFilePath("users-and-products.json");
+            Mapper.Initialize(cfg=>cfg.AddProfile(typeof(ProductShopProfile)));
 
-            //InitializeDatasetFilePath("categories.json");
-            //string inputJson = File.ReadAllText(filePath);
 
-            //dbContext.Database.EnsureDeleted();
-            //dbContext.Database.EnsureCreated();
+            ProductShopContext productShopContext = new ProductShopContext();
 
-            //Console.WriteLine($"Database copy was created!");
+            //productShopContext.Database.EnsureDeleted();
 
-            string json = GetUsersWithProducts(dbContext);
-            File.WriteAllText(filePath, json);
+          //  productShopContext.Database.EnsureCreated();
+
+          string inputJsonUsers = File.ReadAllText($"../../../Datasets/categories-products.json");
+
+          Console.WriteLine(ImportCategoryProducts(productShopContext, inputJsonUsers));
+
         }
 
-        //Problem 01
-        public static string ImportUsers(ProductShopContext context, string inputJson)
-        {
-            ImportUserDto[] userDtos = JsonConvert.DeserializeObject<ImportUserDto[]>(inputJson);
-
-            ICollection<User> validUsers = new List<User>();
-            foreach (ImportUserDto uDto in userDtos)
-            {
-                if (!IsValid(uDto))
-                {
-                    continue;
-                }
-
-                User user = Mapper.Map<User>(uDto);
-                validUsers.Add(user);
-            }
-
-            context.Users.AddRange(validUsers);
-            context.SaveChanges();
-
-            return $"Successfully imported {validUsers.Count}";
-        }
-
-        //Problem 02
-        public static string ImportProducts(ProductShopContext context, string inputJson)
-        {
-            ImportProductDto[] productDtos = JsonConvert
-                .DeserializeObject<ImportProductDto[]>(inputJson);
-
-            ICollection<Product> validProducts = new List<Product>();
-            foreach (ImportProductDto pDto in productDtos)
-            {
-                if (!IsValid(pDto))
-                {
-                    continue;
-                }
-
-                Product product = Mapper.Map<Product>(pDto);
-                validProducts.Add(product);
-            }
-
-            context.Products.AddRange(validProducts);
-            context.SaveChanges();
-
-            return $"Successfully imported {validProducts.Count}";
-        }
-
-        //Problem 03
-        public static string ImportCategories(ProductShopContext context, string inputJson)
-        {
-            ImportCategoryDto[] categoryDtos = JsonConvert
-                .DeserializeObject<ImportCategoryDto[]>(inputJson);
-
-            ICollection<Category> validCategories = new List<Category>();
-            foreach (ImportCategoryDto cDto in categoryDtos)
-            {
-                if (!IsValid(cDto))
-                {
-                    continue;
-                }
-
-                Category category = Mapper.Map<Category>(cDto);
-                validCategories.Add(category);
-            }
-
-            context.Categories.AddRange(validCategories);
-            context.SaveChanges();
-
-            return $"Successfully imported {validCategories.Count}";
-        }
-
-        //Problem 04
-        public static string ImportCategoryProducts(ProductShopContext context, string inputJson)
-        {
-            ImportCategoryProductDto[] categoryProductDtos = JsonConvert
-                .DeserializeObject<ImportCategoryProductDto[]>(inputJson);
-
-            ICollection<CategoryProduct> validCp = new List<CategoryProduct>();
-            foreach (ImportCategoryProductDto cpDto in categoryProductDtos)
-            {
-                //No need of validation
-                //TODO: It will be good to check if there are Product and Category existing with given IDs
-                CategoryProduct categoryProduct = Mapper.Map<CategoryProduct>(cpDto);
-                validCp.Add(categoryProduct);
-            }
-
-            context.CategoryProducts.AddRange(validCp);
-            context.SaveChanges();
-
-            return $"Successfully imported {validCp.Count}";
-        }
-
-        //Problem 05
-        public static string GetProductsInRange(ProductShopContext context)
-        {
-            ExportProductsInRangeDto[] products = context
-                .Products
-                .Where(p => p.Price >= 500 && p.Price <= 1000)
-                .OrderBy(p => p.Price)
-                .ProjectTo<ExportProductsInRangeDto>()
-                .ToArray();
-
-            string json = JsonConvert.SerializeObject(products, Formatting.Indented);
-            return json;
-        }
-
-        //Problem 06
-        public static string GetSoldProducts(ProductShopContext context)
-        {
-            ExportUsersWithSoldProductsDto[] users = context
-                .Users
-                .Where(u => u.ProductsSold.Any(p => p.BuyerId.HasValue))
-                .OrderBy(u => u.LastName)
-                .ThenBy(u => u.FirstName)
-                .ProjectTo<ExportUsersWithSoldProductsDto>()
-                .ToArray();
-
-            string json = JsonConvert.SerializeObject(users, Formatting.Indented);
-            return json;
-        }
-
-        //Problem 08
-        public static string GetUsersWithProducts(ProductShopContext context)
-        {
-            //ExportUsersWithFullProductInfoDto[] users = context
-            //    .Users
-            //    .Where(u => u.ProductsSold.Any(p => p.BuyerId.HasValue))
-            //    .OrderByDescending(u => u.ProductsSold.Count(p => p.BuyerId.HasValue))
-            //    .ProjectTo<ExportUsersWithFullProductInfoDto>()
-            //    .ToArray();
-
-            ExportUsersInfoDto serDto = new ExportUsersInfoDto()
-            {
-                Users = context
-                    .Users
-                    .Where(u => u.ProductsSold.Any(p => p.BuyerId.HasValue))
-                    .OrderByDescending(u => u.ProductsSold.Count(p => p.BuyerId.HasValue))
-                    .Select(u => new ExportUsersWithFullProductInfoDto()
-                    {
-                        FirstName = u.FirstName,
-                        LastName = u.LastName,
-                        Age = u.Age,
-                        SoldProductsInfo = new ExportSoldProductsFullInfoDto()
-                        {
-                            SoldProducts = u.ProductsSold
-                                .Where(p => p.BuyerId.HasValue)
-                                .Select(p => new ExportSoldProductShortInfoDto()
-                                {
-                                    Name = p.Name,
-                                    Price = p.Price
-                                })
-                                .ToArray()
-                        }
-                    })
-                    .ToArray();
-            };
-
-            JsonSerializerSettings serializerSettings = new JsonSerializerSettings()
-            {
-                NullValueHandling = NullValueHandling.Ignore
-            };
-            string json = JsonConvert.SerializeObject(serDto, Formatting.Indented, serializerSettings);
-            return json;
-        }
-
-        private static void InitializeDatasetFilePath(string fileName)
-        {
-            filePath =
-                Path.Combine(Directory.GetCurrentDirectory(), "../../../Datasets/", fileName);
-        }
-
-        private static void InitializeOutputFilePath(string fileName)
-        {
-            filePath =
-                Path.Combine(Directory.GetCurrentDirectory(), "../../../Results/", fileName);
-        }
-
-        /// <summary>
-        /// Executes all validation attributes in a class and returns true or false depending on validation result.
-        /// </summary>
-        /// <param name="obj"></param>
-        /// <returns></returns>
         private static bool IsValid(object obj)
         {
             var validationContext = new System.ComponentModel.DataAnnotations.ValidationContext(obj);
@@ -229,5 +46,129 @@
             bool isValid = Validator.TryValidateObject(obj, validationContext, validationResult, true);
             return isValid;
         }
+
+        public static string ImportUsers(ProductShopContext context, string inputJson)
+        {
+            ImportUserDto[] userDtos = JsonConvert.DeserializeObject<ImportUserDto[]>(inputJson);
+
+            StringBuilder output = new StringBuilder();
+
+            ICollection<User> validUsers = new List<User>();
+
+            foreach (var userDto in userDtos)
+            {
+
+                if (!IsValid(userDtos))
+                {
+                    continue;
+
+                }
+                
+                User user = Mapper.Map<User>(userDto);
+
+                validUsers.Add(user);
+            }
+            
+            context.Users.AddRange(validUsers);
+
+            context.SaveChanges();
+
+            return output.AppendLine($"Successfully imported {validUsers.Count}").ToString().Trim();
+
+
+        }
+
+        public static string ImportProducts(ProductShopContext context, string inputJson)
+        {
+
+            ImportProductDto[] productDtos = JsonConvert.DeserializeObject<ImportProductDto[]>(inputJson);
+
+            StringBuilder output = new StringBuilder();
+
+            ICollection<Product> validProducts = new List<Product>();
+
+            foreach (var productDto in productDtos)
+            {
+
+                if (!IsValid(productDto))
+                {
+                    continue;
+                }
+
+                Product product = Mapper.Map<Product>(productDto);
+
+                validProducts.Add(product);
+
+            }
+
+            context.Products.AddRange(validProducts);
+
+            context.SaveChanges();
+
+            return output.AppendLine($"Successfully imported {validProducts.Count}").ToString().Trim();
+
+        }
+
+        public static string ImportCategories(ProductShopContext context, string inputJson)
+        {
+
+            ImportCategoryDto[] categoryDtos = JsonConvert.DeserializeObject<ImportCategoryDto[]>(inputJson);
+
+            StringBuilder output = new StringBuilder();
+
+            ICollection<Category> valCategories = new List<Category>();
+
+            foreach (var categoryDto in categoryDtos)
+            {
+
+                if (!IsValid(categoryDto))
+                {
+                    continue;
+                }
+
+                Category category = Mapper.Map<Category>(categoryDto);
+
+                valCategories.Add(category);
+
+
+            }
+
+            context.Categories.AddRange(valCategories);
+
+            context.SaveChanges();
+
+            return output.AppendLine($"Successfully imported {valCategories.Count}").ToString().Trim();
+
+        }
+
+        public static string ImportCategoryProducts(ProductShopContext context, string inputJson)
+        {
+
+            ImportCategory_ProductDto[] categoryProductDto = JsonConvert.DeserializeObject<ImportCategory_ProductDto[]>(inputJson);
+
+            StringBuilder output = new StringBuilder();
+
+            ICollection<CategoryProduct> valCategories = new List<CategoryProduct>();
+
+            foreach (var dtoCategoryProduct in categoryProductDto)
+            {
+                if (!IsValid(dtoCategoryProduct))
+                {
+                    continue;
+                }
+
+                CategoryProduct categoryProduct = Mapper.Map<CategoryProduct>(dtoCategoryProduct);
+
+                valCategories.Add(categoryProduct);
+            }
+
+            context.CategoryProducts.AddRange(valCategories);
+
+            context.SaveChanges();
+
+            return output.AppendLine($"Successfully imported {valCategories.Count}").ToString().Trim();
+
+        }
+
     }
 }
