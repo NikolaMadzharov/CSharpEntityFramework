@@ -1,10 +1,5 @@
 
-
-
-
-namespace ProductShop
-{
-    using System;
+using System;
     using System.Collections.Generic;
     using System.ComponentModel.DataAnnotations;
     using System.Data;
@@ -23,6 +18,12 @@ namespace ProductShop
     using ProductShop.Dtos.Export;
     using ProductShop.Dtos.Import;
     using ProductShop.Models;
+
+
+
+namespace ProductShop
+{
+    
 
     public class StartUp
     {
